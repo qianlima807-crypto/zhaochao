@@ -188,7 +188,8 @@ function LoadingContent() {
           infoType,
           dimensions: dimensionIds.join(','),
         })
-        router.push(`/compare/report/demo?${params.toString()}`)
+        const reportId = `report-${Date.now()}`
+        router.push(`/compare/report/${reportId}?${params.toString()}`)
       }, 1500)
     }, totalDuration)
 

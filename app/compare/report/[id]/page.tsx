@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useMemo, useState, Suspense, useEffect } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { websites, generateCompareReport, termDefinitions, periodOptions, infoTypes } from '@/lib/mock-data'
+import { websites, termDefinitions, periodOptions, infoTypes } from '@/lib/mock-data'
 import {
   BarChart,
   Bar,
@@ -72,7 +72,10 @@ function TermTooltip({ term, children }: { term: string; children: React.ReactNo
 
 function ReportContent() {
   const searchParams = useSearchParams()
+  const params = useParams<{ id: string }>()
   const [expandedSamples, setExpandedSamples] = useState<string[]>([])
+  const [report, setReport] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   // 解析URL参数
   const websiteIds = searchParams.get('websites')?.split(',') || []
@@ -80,10 +83,34 @@ function ReportContent() {
   const infoType = searchParams.get('infoType') || 'bidding'
   const dimensionIds = searchParams.get('dimensions')?.split(',') || ['speed', 'recall', 'duplicate']
 
-  // 生成报告数据
-  const report = useMemo(() => {
-    return generateCompareReport(websiteIds, period, infoType, dimensionIds)
-  }, [websiteIds, period, infoType, dimensionIds])
+  useEffect(() => {
+    let canceled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const resp = await fetch(`/api/reports/${params?.id}?websites=${websiteIds.join(',')}&period=${period}&infoType=${infoType}&dimensions=${dimensionIds.join(',')}`)
+        if (!resp.ok) throw new Error('no real report')
+        const data = await resp.json()
+        if (!canceled) setReport(data)
+      } catch {
+        if (!canceled) setReport(null)
+      } finally {
+        if (!canceled) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      canceled = true
+    }
+  }, [params?.id, websiteIds, period, infoType, dimensionIds])
+
+  if (loading) {
+    return <div className="container mx-auto px-4 py-8 text-muted-foreground">正在加载真实评测数据...</div>
+  }
+
+  if (!report) {
+    return <div className="container mx-auto px-4 py-8"><Card><CardHeader><CardTitle>暂无真实评测数据</CardTitle><CardDescription>请先在后台控制端触发真实评测任务，任务完成后再查看报告。</CardDescription></CardHeader></Card></div>
+  }
 
   const periodLabel = periodOptions.find(p => p.value === period)?.label || period
   const infoTypeLabel = infoTypes.find(t => t.value === infoType)?.label || infoType

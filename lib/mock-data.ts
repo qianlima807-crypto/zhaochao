@@ -1,15 +1,16 @@
 // 招投标网站列表
 export const websites = [
+  { id: 'zbcgdhw', name: '招标采购导航网', domain: 'okcis.cn', logo: '🧭' },
+  { id: 'chinabidding', name: '中国招标网', domain: 'bidchance.com', logo: '🇨🇳' },
+  { id: 'caizhaowang', name: '中国采招网', domain: 'chinabidding.cn', logo: '📋' },
   { id: 'qianlima', name: '千里马招标网', domain: 'qianlima.com', logo: '🏇' },
-  { id: 'caizhaobiao', name: '采招网', domain: 'bidcenter.com.cn', logo: '📋' },
-  { id: 'chinabidding', name: '中国招标网', domain: 'chinabidding.com.cn', logo: '🇨🇳' },
   { id: 'bidizhaobiao', name: '比地招标网', domain: 'bidizhaobiao.com', logo: '📍' },
-  { id: 'ebnew', name: '必联网', domain: 'ebnew.com', logo: '🔗' },
-  { id: 'biaoleida', name: '招标雷达', domain: 'biaoleida.com', logo: '📡' },
-  { id: 'biaoshitong', name: '标事通', domain: 'biaoshitong.com', logo: '📝' },
-  { id: 'huobiao', name: '火标网', domain: 'huobiao.cn', logo: '🔥' },
+  { id: 'liudubiaoxun', name: '六度标讯', domain: '6dbx.com', logo: '6️⃣' },
   { id: 'chinacgyw', name: '中国采购与招标网', domain: 'chinacgyw.com', logo: '🏛️' },
-  { id: 'ccgp', name: '政府采购网', domain: 'ccgp.gov.cn', logo: '🏢' },
+  { id: 'jianyubiaoxun', name: '剑鱼标讯', domain: 'jianyu360.com', logo: '🗡️' },
+  { id: 'biaobiaoda', name: '标标达', domain: 'biaobiaoda.com', logo: '🎯' },
+  { id: 'zhiliaobiaoxun', name: '知了标讯', domain: 'zhiliaobx.com', logo: '🪲' },
+  { id: 'yfbzb', name: '乙方宝招标官网', domain: 'yfbzb.com', logo: '💎' },
 ]
 
 // 评测维度
