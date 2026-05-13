@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-context'
-import { BarChart3, GitCompare, LogOut, User } from 'lucide-react'
+import { BarChart3, GitCompare, LogOut, Settings, User } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +15,7 @@ import {
 const navItems = [
   { href: '/rankings', label: '排行榜', icon: BarChart3 },
   { href: '/compare', label: '网站对比', icon: GitCompare },
+  { href: '/admin', label: '后台控制', icon: Settings },
 ]
 
 export function Header() {

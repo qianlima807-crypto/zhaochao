@@ -32,34 +32,34 @@ const dimensionIcons = {
 const methodologyContent = {
   speed: {
     title: '信息更新速度评测方法论',
-    summary: '通过对比原始发布时间与各平台收录时间，量化评估各招投标网站的信息更新效率。',
+    summary: '采用分时段快照抽样法，在不同发布时间窗口批量检索各平台命中情况，量化评估信息更新效率。',
     steps: [
       {
         title: '数据采集',
-        description: '从国家公共资源交易平台、中国政府采购网等官方源站随机抽取500条近30天发布的招标公告作为基准样本。',
+        description: '从中国政府采购网等官方源站抽样标题，并按发布时间分桶（10分钟、30分钟、1小时、2小时…24小时）构建基准样本。',
       },
       {
-        title: '时间戳记录',
-        description: '记录每条公告在源站的原始发布时间，精确到分钟级别。',
+        title: '分桶建样',
+        description: '每个时间桶抽取固定样本量，记录源站发布时间与标题（含标题变体）作为检索输入。',
       },
       {
-        title: '收录检测',
-        description: '通过API和爬虫技术，检测每条基准公告在各目标平台的首次出现时间。',
+        title: '批量检索',
+        description: '在第三方招标网站按原标题与部分标题进行批量查询，仅保留与源数据同一天的结果作为有效命中。',
       },
       {
-        title: '延迟计算',
-        description: '计算收录时间与原始发布时间的差值，得出信息延迟时长。',
+        title: '时效推断',
+        description: '基于各时间桶命中率推断平台收录速度，不采用逐条持续轮询，显著缩短评测时间。',
       },
       {
         title: '统计分析',
-        description: '对所有样本的延迟时长进行统计，计算P50（中位数）、P95（95百分位）和平均值。',
+        description: '统计各桶命中率、24小时覆盖率与分位延迟；未命中样本按右删失处理，避免低估真实延迟。',
       },
     ],
     metrics: [
-      { name: 'P50延迟', weight: '40%', description: '中位数延迟，反映典型用户体验' },
-      { name: 'P95延迟', weight: '30%', description: '极端情况延迟，反映系统稳定性' },
-      { name: '平均延迟', weight: '20%', description: '整体平均表现' },
-      { name: '24小时覆盖率', weight: '10%', description: '24小时内收录的比例' },
+      { name: 'T50收录时间', weight: '35%', description: '累计命中率达到50%所需时间，反映典型更新速度' },
+      { name: 'T80收录时间', weight: '25%', description: '累计命中率达到80%所需时间，反映大规模可见性' },
+      { name: '24小时覆盖率', weight: '25%', description: '24小时内可检索到的样本比例' },
+      { name: '截尾平均延迟', weight: '15%', description: '未命中样本按截尾规则处理后的平均延迟' },
     ],
     conclusion: '',
     keyFindings: [] as string[],
