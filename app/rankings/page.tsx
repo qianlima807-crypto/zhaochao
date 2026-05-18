@@ -139,6 +139,14 @@ const methodologyContent = {
 
 // 根据排名数据生成结论
 function generateConclusion(dimension: string, rankingData: ReturnType<typeof generateRankingData>, month: string) {
+  if (!rankingData.length) {
+    const content = { ...methodologyContent[dimension as keyof typeof methodologyContent] }
+    content.conclusion = '当前暂无真实评测数据，请先在后台触发任务并完成采集后查看。'
+    content.keyFindings = ['暂无可展示的真实样本数据']
+    content.recommendations = ['请先在后台控制台触发对应维度任务', '任务完成后刷新本页查看真实排行榜与报告']
+    return content
+  }
+
   const top3 = rankingData.slice(0, 3)
   const bottom3 = rankingData.slice(-3)
   const monthLabel = months.find(m => m.value === month)?.label || month
@@ -216,6 +224,12 @@ export default function RankingsPage() {
             基于客观数据评测，帮助您了解各平台的信息服务质量。选择不同维度查看详细排名和评测报告。
           </p>
         </div>
+
+        {rankingData.length === 0 && (
+          <div className="mb-6 rounded-lg border border-amber-300/40 bg-amber-50 px-4 py-3 text-amber-800">
+            当前暂无真实评测数据。请在后台控制台触发并完成评测任务后再查看排行榜。
+          </div>
+        )}
 
         {/* 维度选择卡片 - 重新设计为更明显的可点击卡片 */}
         <div className="mb-6">
