@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>招标信息网站月榜中心（原型）</title>
+  <style>
+    :root{--bg:#0b1020;--panel:#121a30;--panel2:#17213b;--text:#e6ebff;--muted:#8ea1c7;--line:#263458;--primary:#6ea8fe;--cyan:#4fd1c5;--pink:#f472b6;--amber:#f59e0b}
+    *{box-sizing:border-box} body{margin:0;background:radial-gradient(1200px 500px at 15% -10%,#243b80 0,#0b1020 45%),var(--bg);color:var(--text);font-family:"PingFang SC","Microsoft YaHei",Arial,sans-serif}
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px 40px}
+    h1{margin:0 0 8px;font-size:34px;letter-spacing:.5px} .sub{color:var(--muted);margin-bottom:16px;line-height:1.7}
+    .glass{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border:1px solid var(--line);border-radius:16px;padding:14px;backdrop-filter: blur(6px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}.kpi{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+    .k{font-size:12px;color:var(--muted)}.v{font-size:24px;font-weight:700;margin-top:5px}
+    .list-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    .list-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .list-card h3{margin:0 0 8px}.hint{font-size:12px;color:var(--muted);margin-bottom:8px}
+    .month-link{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid #2a3a60;color:#dbe7ff;text-decoration:none;margin-bottom:7px;transition:.2s}
+    .month-link:hover{transform:translateY(-1px);border-color:#6ea8fe;background:#1d2b4d}
+    .detail{margin-top:14px}
+    .chart{margin-top:10px;padding:12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+    .chart h4{margin:0 0 4px}.desc{margin:0 0 10px;color:var(--muted);font-size:13px;line-height:1.6}
+    svg{width:100%;height:240px;display:block}
+    .fade{animation:fadeIn .4s ease}@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    @media (max-width:980px){.kpis,.list-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>招标信息网站月榜中心</h1>
+  <div class="sub">你可以先在月榜列表里选月份，再进入详细页。详细页统一展示三类能力：<b>更新速度</b>、<b>召回率</b>、<b>去重率</b>。<br>大白话解释：召回率=该抓到的公告抓到了多少；去重率=重复公告清理得有多干净。</div>
+
+  <div class="glass kpis">
+    <div class="kpi"><div class="k">覆盖月份</div><div class="v">2026.01-06</div></div>
+    <div class="kpi"><div class="k">基准源站</div><div class="v">32 个</div></div>
+    <div class="kpi"><div class="k">总样本量</div><div class="v">108,240</div></div>
+    <div class="kpi"><div class="k">平均匹配成功率</div><div class="v">96.8%</div></div>
+  </div>
+
+  <div class="glass">
+    <h2 style="margin:0 0 6px">月榜列表合集</h2>
+    <div class="hint">说明：点击任一月份榜单，会在下方加载该月详细图表（单列展示，不并排，便于阅读）。</div>
+    <div class="list-grid" id="lists"></div>
+  </div>
+
+  <div class="glass detail fade" id="detail"></div>
+</div>
+
+<script>
+const months=["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06"];
+const sites=["千里马招标网","六度标讯","采招网","中国招标网","比地招标网","采购与招标网"];
+const monthly={
+"2026-01":{speed:[14,19,68,278,291,350],recall:[96,95,88,83,82,79],dedup:[94,93,90,88,86,84]},
+"2026-02":{speed:[13,18,65,274,288,346],recall:[96.3,95.1,88.4,83.4,82.3,79.1],dedup:[94.1,93.2,90.1,88.1,86.2,84.1]},
+"2026-03":{speed:[13,18,63,272,286,344],recall:[96.5,95.2,88.7,83.7,82.5,79.3],dedup:[94.2,93.4,90.2,88.3,86.3,84.2]},
+"2026-04":{speed:[12,17,61,269,283,341],recall:[96.7,95.4,89.0,84.0,82.8,79.5],dedup:[94.3,93.5,90.3,88.5,86.4,84.3]},
+"2026-05":{speed:[12,17,60,268,281,339],recall:[96.8,95.2,89.1,84.2,82.7,79.6],dedup:[94.1,93.5,90.3,88.1,86.4,84.2]},
+"2026-06":{speed:[11,16,58,263,277,334],recall:[97.0,95.5,89.4,84.6,83.1,79.9],dedup:[94.4,93.8,90.6,88.6,86.7,84.6]}
+};
+
+function rank(metric,month){const arr=sites.map((s,i)=>({name:s,v:monthly[month][metric][i]}));return arr.sort((a,b)=> metric==='speed'?a.v-b.v:b.v-a.v)}
+function listBlock(title,metric,desc){return `<div class="list-card"><h3>${title}</h3><div class="hint">${desc}</div>${months.map(m=>`<a href="#detail" class="month-link" data-month="${m}" data-metric="${metric}"><span>${m} ${title}</span><span>查看详情 →</span></a>`).join('')}</div>`}
+
+document.getElementById('lists').innerHTML=
+  listBlock('更新速度月榜单','speed','越小越快。比如 P50=12 分钟，表示一半公告 12 分钟内出现。')+
+  listBlock('召回率月榜单','recall','越高越全。比如 96%，表示 100 条应抓公告抓到 96 条。')+
+  listBlock('去重率月榜单','dedup','越高越干净。比如 94%，表示重复信息大多被清理。');
+
+function render(month='2026-06',metric='speed'){
+  const detail=document.getElementById('detail');
+  const speedR=rank('speed',month),recallR=rank('recall',month),dedupR=rank('dedup',month);
+  detail.classList.remove('fade'); void detail.offsetWidth; detail.classList.add('fade');
+  detail.innerHTML=`<h2 style="margin:0 0 8px">${month} 详细页面</h2>
+  <div class="desc">当前入口：<b>${metric==='speed'?'更新速度':'召回率/去重率'}</b>。下面三张图分别解释“快不快、全不全、重不重”。</div>
+  <div class="chart"><h4>图1：更新速度排行（P50分钟）</h4><p class="desc">大白话：柱子越短越好，代表网站更新越快。P50 就是“中位数”，不是平均值，能减少极端值干扰。</p><svg id="c1"></svg></div>
+  <div class="chart"><h4>图2：召回率 vs 去重率（双折线）</h4><p class="desc">大白话：绿色线看“漏不漏公告”，粉色线看“重复多不多”。两条线都高，才说明质量稳定。</p><svg id="c2"></svg></div>
+  <div class="chart"><h4>图3：TOP3 平台能力雷达图</h4><p class="desc">大白话：图形面积越大，综合能力越强。我们把速度换算成“越大越好”的得分再画图。</p><svg id="c3"></svg></div>`;
+
+  const c1=document.getElementById('c1');
+  c1.innerHTML=speedR.map((d,i)=>{const h=Math.max(8,200-d.v*0.5);const x=30+i*85;return `<rect x="${x}" y="${h}" width="42" height="${210-h}" rx="8" fill="url(#g1)"><animate attributeName="y" from="210" to="${h}" dur="500ms"/></rect><text x="${x}" y="228" font-size="10" fill="#c9d6ff">${i+1}</text><text x="${x}" y="18" font-size="10" fill="#9db4e5">${d.v}m</text>`}).join('')+`<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#6ea8fe"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>`;
+
+  const cx=(i)=>30+i*95, yR=(v)=>220-v*1.7, yD=(v)=>220-v*1.7;
+  const pR=sites.map((_,i)=>`${cx(i)},${yR(monthly[month].recall[i])}`).join(' '), pD=sites.map((_,i)=>`${cx(i)},${yD(monthly[month].dedup[i])}`).join(' ');
+  document.getElementById('c2').innerHTML=`<polyline points="${pR}" fill="none" stroke="#4fd1c5" stroke-width="3"/><polyline points="${pD}" fill="none" stroke="#f472b6" stroke-width="3"/>${sites.map((s,i)=>`<circle cx="${cx(i)}" cy="${yR(monthly[month].recall[i])}" r="3" fill="#4fd1c5"/><circle cx="${cx(i)}" cy="${yD(monthly[month].dedup[i])}" r="3" fill="#f472b6"/><text x="${cx(i)-8}" y="236" font-size="9" fill="#b7c8ef">${i+1}</text>`).join('')}<text x="10" y="16" fill="#4fd1c5" font-size="11">召回率</text><text x="70" y="16" fill="#f472b6" font-size="11">去重率</text>`;
+
+  const top3=[speedR[0].name,speedR[1].name,speedR[2].name].map(n=>sites.indexOf(n));
+  const polygons=top3.map((idx,i)=>{const c=["#6ea8fe","#4fd1c5","#f59e0b"][i],sp=100-Math.min(monthly[month].speed[idx]/4,85),re=monthly[month].recall[idx],de=monthly[month].dedup[idx];const pts=[[180,120-sp],[180+re*0.9,120],[180,120+de*0.9],[180-sp,120]].map(p=>p.join(',')).join(' ');return `<polygon points="${pts}" fill="${c}" fill-opacity="0.18" stroke="${c}"/><text x="12" y="${20+i*16}" fill="${c}" font-size="11">${sites[idx]}</text>`}).join('');
+  document.getElementById('c3').innerHTML=`<circle cx="180" cy="120" r="90" fill="none" stroke="#2f426f"/><circle cx="180" cy="120" r="60" fill="none" stroke="#2f426f"/><circle cx="180" cy="120" r="30" fill="none" stroke="#2f426f"/>${polygons}`;
+}
+
+document.querySelectorAll('.month-link').forEach(a=>a.onclick=(e)=>{e.preventDefault();render(a.dataset.month,a.dataset.metric)});
+render();
+</script>
+</body>
+</html>
