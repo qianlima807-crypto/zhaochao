@@ -3,9 +3,6 @@
 import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 
 type Dimension = 'speed' | 'recall' | 'duplicate'
@@ -33,8 +30,21 @@ type EvalTask = {
 }
 
 const initialSites: SiteConfig[] = [
-  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', fullUrl: 'https://search.ccgp.gov.cn/bxsearch?searchtype=2&dbselect=bidx', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: 'searchtype=2&dbselect=bidx', enabled: true },
+  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', fullUrl: 'https://search.ccgp.gov.cn/bxsearch', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: '', enabled: true },
+  { id: 'ggzy', name: '全国公共资源交易平台', dimension: 'speed', role: 'source', fullUrl: 'https://www.ggzy.gov.cn/deal/dealList.html?DEAL_CLASSIFY=00&DEAL_STAGE=0001', baseUrl: 'https://www.ggzy.gov.cn', searchPath: '/deal/dealList.html', fixedParams: 'DEAL_CLASSIFY=00&DEAL_STAGE=0001', enabled: true },
+  { id: 'sdccgp', name: '山东政府采购网', dimension: 'speed', role: 'source', fullUrl: 'http://www.ccgp-shandong.gov.cn/xxgk?colCode=0301&area=370000&selectedCode=0301&selectedCode1=0303&selectedName=%E9%87%87%E8%B4%AD%E5%85%AC%E5%91%8A', baseUrl: 'http://www.ccgp-shandong.gov.cn', searchPath: '/xxgk', fixedParams: 'colCode=0301&area=370000&selectedCode=0301&selectedCode1=0303&selectedName=%E9%87%87%E8%B4%AD%E5%85%AC%E5%91%8A', enabled: true },
+
+  { id: 'yfbzb', name: '乙方宝招标网', dimension: 'recall', role: 'target', fullUrl: 'https://www.yfbzb.com/search/invitedBidSearch?defaultSearch=true', baseUrl: 'https://www.yfbzb.com', searchPath: '/search/invitedBidSearch', keywordParam: 'keyword', fixedParams: 'defaultSearch=true', enabled: true },
+  { id: 'zhaobiaowang', name: '招标网', dimension: 'recall', role: 'target', fullUrl: 'https://s.zhaobiao.cn/search/index', baseUrl: 'https://s.zhaobiao.cn', searchPath: '/search/index', keywordParam: 'q', fixedParams: '', enabled: true },
   { id: 'qianlima', name: '千里马招标网', dimension: 'recall', role: 'target', fullUrl: 'https://search.qianlima.com/?q=#/search', baseUrl: 'https://search.qianlima.com', searchPath: '/', keywordParam: 'q', fixedParams: '#/search', enabled: true },
+  { id: 'bidcenter', name: '采招网', dimension: 'recall', role: 'target', fullUrl: 'https://search.bidcenter.com.cn/', baseUrl: 'https://search.bidcenter.com.cn', searchPath: '/', keywordParam: 'q', fixedParams: '', enabled: true },
+  { id: 'okcis', name: '招标采购导航网', dimension: 'recall', role: 'target', fullUrl: 'https://www.okcis.cn/search/', baseUrl: 'https://www.okcis.cn', searchPath: '/search/', keywordParam: 'q', fixedParams: '', enabled: true },
+  { id: 'bidizhaobiao', name: '比地招标网', dimension: 'recall', role: 'target', fullUrl: 'https://www.bidizhaobiao.com/advsearch/retrieval_list.do', baseUrl: 'https://www.bidizhaobiao.com', searchPath: '/advsearch/retrieval_list.do', keywordParam: 'keyword', fixedParams: '', enabled: true },
+  { id: 'jianyu360', name: '剑鱼标讯', dimension: 'recall', role: 'target', fullUrl: 'https://www.jianyu360.cn/jylab/supsearch/index.html?keywords=&selectType=title&searchGroup=1', baseUrl: 'https://www.jianyu360.cn', searchPath: '/jylab/supsearch/index.html', keywordParam: 'keywords', fixedParams: 'selectType=title&searchGroup=1', enabled: true },
+  { id: 'chinabidding', name: '中国采购与招标网', dimension: 'recall', role: 'target', fullUrl: 'https://www.chinabidding.cn/public/yjsc/html/treetop_search.html?keywords=&start=&end=&search_type=CONTEXT&areaid=&categoryid=&b_date=month&table_type=&page=1', baseUrl: 'https://www.chinabidding.cn', searchPath: '/public/yjsc/html/treetop_search.html', keywordParam: 'keywords', fixedParams: 'start=&end=&search_type=CONTEXT&areaid=&categoryid=&b_date=month&table_type=&page=1', enabled: true },
+  { id: '6dbx', name: '六度标讯', dimension: 'recall', role: 'target', fullUrl: 'https://www.6dbx.com/search.html?source=baidu&searchWords=', baseUrl: 'https://www.6dbx.com', searchPath: '/search.html', keywordParam: 'searchWords', fixedParams: 'source=baidu', enabled: true },
+  { id: 'bbda', name: '标标达', dimension: 'recall', role: 'target', fullUrl: 'https://bbda.com/pc/', baseUrl: 'https://bbda.com', searchPath: '/pc/', keywordParam: 'q', fixedParams: '', enabled: true },
+  { id: 'zhiliaobx', name: '知了标讯', dimension: 'recall', role: 'target', fullUrl: 'https://www.zhiliaobiaoxun.com/search/', baseUrl: 'https://www.zhiliaobiaoxun.com', searchPath: '/search/', keywordParam: 'q', fixedParams: '', enabled: true },
 ]
 
 const initialTasks: EvalTask[] = [
@@ -43,47 +53,10 @@ const initialTasks: EvalTask[] = [
 ]
 
 export default function AdminPage() {
-  const [sites, setSites] = useState<SiteConfig[]>(initialSites)
+  const sites = initialSites
   const [tasks, setTasks] = useState<EvalTask[]>(initialTasks)
-  const [name, setName] = useState('')
-  const [dimension, setDimension] = useState<Dimension>('recall')
-  const [role, setRole] = useState<SiteRole>('target')
-  const [fullUrl, setFullUrl] = useState('')
 
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
-
-  const parseUrlConfig = (urlText: string) => {
-    try {
-      const u = new URL(urlText)
-      const params = new URLSearchParams(u.search)
-      const knownKeys = ['q', 'keyword', 'kw', 'searchparam']
-      const keywordParam = knownKeys.find(k => params.has(k)) || ''
-      if (keywordParam) params.delete(keywordParam)
-      return {
-        baseUrl: `${u.protocol}//${u.host}`,
-        searchPath: u.pathname || '/',
-        keywordParam,
-        fixedParams: params.toString() + (u.hash || ''),
-      }
-    } catch {
-      return null
-    }
-  }
-
-  const addSite = () => {
-    if (!name.trim() || !fullUrl.trim()) return
-    const parsed = parseUrlConfig(fullUrl.trim())
-    if (!parsed) return
-    if (role === 'target' && !parsed.keywordParam) return
-    const id = `${dimension}-${Date.now()}`
-    setSites(prev => [...prev, { id, name: name.trim(), dimension, role, fullUrl: fullUrl.trim(), baseUrl: parsed.baseUrl, searchPath: parsed.searchPath, keywordParam: role === 'target' ? parsed.keywordParam : '', fixedParams: parsed.fixedParams, enabled: true }])
-    setName('')
-    setFullUrl('')
-  }
-
-  const toggleSite = (id: string) => {
-    setSites(prev => prev.map(s => (s.id === id ? { ...s, enabled: !s.enabled } : s)))
-  }
 
   const createTask = (d: Dimension) => {
     const id = `task-${Date.now()}`
@@ -107,7 +80,7 @@ export default function AdminPage() {
     <div className="container mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">评测后台控制台</h1>
-        <p className="text-muted-foreground mt-2">配置各维度采集地址、触发评测任务、导出过程数据用于验收。</p>
+        <p className="text-muted-foreground mt-2">当前地址为评测固定配置（不可修改），可查看并导出用于验收。</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -122,31 +95,7 @@ export default function AdminPage() {
           <CardDescription>按维度和角色（源头/第三方）维护站点配置；源头站仅列表采集无需关键词参数，第三方站才需要关键词参数。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-4">
-            <div className="space-y-2"><Label>站点名称</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="例如：某招标网" /></div>
-            <div className="space-y-2"><Label>评测维度</Label>
-              <Select value={dimension} onValueChange={(v) => setDimension(v as Dimension)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="speed">更新速度</SelectItem>
-                  <SelectItem value="recall">召回率</SelectItem>
-                  <SelectItem value="duplicate">重复率</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2"><Label>站点角色</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as SiteRole)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="source">发布源头</SelectItem>
-                  <SelectItem value="target">第三方</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2"><Label>完整URL</Label><Input value={fullUrl} onChange={e => setFullUrl(e.target.value)} placeholder="https://www.ggzy.gov.cn/deal/dealList.html?DEAL_CLASSIFY=00&DEAL_STAGE=0001" /></div>
-          </div>
-          <p className="text-xs text-muted-foreground">系统会自动解析出 base URL、search path、关键词参数名（仅第三方站）和固定参数。</p>
-          <div className="flex gap-2"><Button onClick={addSite}>新增地址</Button><Button variant="outline" onClick={exportCsv}>导出配置CSV</Button></div>
+          <div className="flex gap-2"><Button variant="outline" onClick={exportCsv}>导出配置CSV</Button></div>
           <div className="rounded-md border divide-y">
             {sites.map(site => (
               <div key={site.id} className="p-3 flex items-center justify-between gap-3">
@@ -155,7 +104,7 @@ export default function AdminPage() {
                   <p className="text-xs text-muted-foreground break-all">{site.fullUrl}</p>
                   <p className="text-xs text-muted-foreground break-all">解析结果: {site.baseUrl}{site.searchPath} | keyword={site.keywordParam || "-"} | fixed={site.fixedParams || '-'}</p>
                 </div>
-                <Button size="sm" variant={site.enabled ? 'default' : 'outline'} onClick={() => toggleSite(site.id)}>{site.enabled ? '已启用' : '已禁用'}</Button>
+                <Badge variant={site.enabled ? "default" : "outline"}>{site.enabled ? "已启用" : "已禁用"}</Badge>
               </div>
             ))}
           </div>
