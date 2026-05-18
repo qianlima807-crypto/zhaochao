@@ -5,7 +5,7 @@ export type Dimension = 'speed' | 'recall' | 'duplicate'
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed'
 
 export type TaskStep = { id: string; name: string; status: StepStatus; log: string[]; artifact?: string }
-export type EvalTask = { id: string; dimension: Dimension; status: 'running'|'done'|'failed'; createdAt: string; steps: TaskStep[] }
+export type EvalTask = { id: string; dimension: Dimension; status: 'running'|'done'|'failed'; createdAt: string; steps: TaskStep[]; runtimeLogs: string[] }
 
 const TASKS = new Map<string, EvalTask>()
 const ART_DIR = path.join(process.cwd(), '.artifacts')
@@ -30,6 +30,13 @@ const targets = [
   'https://www.zhiliaobiaoxun.com/search/',
 ]
 
+
+function pushLog(task: EvalTask, message: string) {
+  const line = `[${new Date().toLocaleTimeString('zh-CN', { hour12: false })}] ${message}`
+  task.runtimeLogs.push(line)
+  if (task.runtimeLogs.length > 500) task.runtimeLogs.shift()
+}
+
 function mkSteps(d: Dimension): TaskStep[] {
   if (d === 'speed') return [
     { id: 'collect-source', name: '步骤1：采集发布源头测试数据', status: 'pending', log: [] },
@@ -51,52 +58,54 @@ function mkSteps(d: Dimension): TaskStep[] {
 function toCsv(rows: string[][]) { return rows.map(r => r.map(v => `"${String(v).replaceAll('"','""')}"`).join(',')).join('\n') }
 async function fetchHtml(url: string) { const r = await fetch(url, { headers: { 'user-agent':'Mozilla/5.0' } }); return await r.text() }
 function extractTitles(html: string) {
-  const matches = [...html.matchAll(/>([^<>]{10,120}(招标|采购|中标|成交|公告)[^<>]{0,40})</g)]
-  return Array.from(new Set(matches.map(m => m[1].replace(/\s+/g,' ').trim()))).slice(0, 20)
+  const matches = [...html.matchAll(/>([^<>]{6,200}(招标|采购|中标|成交|公告)[^<>]{0,60})</g)]
+  const arr = Array.from(new Set(matches.map(m => m[1].replace(/\s+/g,' ').trim()))).slice(0, 50)
+  if (arr.length) return arr
+  return ['未解析到标题-请检查站点结构']
 }
 
 async function runTask(task: EvalTask) {
   try {
-    task.steps[0].status = 'running'; task.steps[0].log.push('任务开始')
+    task.steps[0].status = 'running'; task.steps[0].log.push('任务开始'); pushLog(task, '任务开始执行')
     // step1
     const sourceRows: string[][] = [['source_url','title']]
     for (const u of sources) {
-      task.steps[0].log.push(`采集 ${u}`)
+      task.steps[0].log.push(`采集 ${u}`); pushLog(task, `步骤1采集：${u}`)
       try {
         const titles = extractTitles(await fetchHtml(u))
         titles.forEach(t => sourceRows.push([u, t]))
       } catch (e) {
-        task.steps[0].log.push(`采集失败: ${u}`)
+        task.steps[0].log.push(`采集失败: ${u}`); pushLog(task, `步骤1采集失败：${u}`)
       }
     }
     const f1 = path.join(ART_DIR, `${task.id}-step1.csv`)
     fs.writeFileSync(f1, toCsv(sourceRows), 'utf-8')
-    task.steps[0].artifact = f1; task.steps[0].status = 'done'
+    task.steps[0].artifact = f1; task.steps[0].status = 'done'; pushLog(task, `步骤1完成，产物：${f1}，行数：${sourceRows.length - 1}`)
 
-    task.steps[1].status = 'running'; task.steps[1].log.push('开始第三方查询')
+    task.steps[1].status = 'running'; task.steps[1].log.push('开始第三方查询'); pushLog(task, '步骤2开始第三方查询')
     const sampleTitles = sourceRows.slice(1, 11).map(r => r[1])
     const step2: string[][] = [['target_url','title','reachable']]
     for (const turl of targets) {
       for (const t of sampleTitles.slice(0,3)) {
-        let ok = '0'
+        let ok = '0'; pushLog(task, `步骤2查询：${turl}`)
         try { await fetch(turl, { method: 'GET', headers:{'user-agent':'Mozilla/5.0'} }); ok = '1' } catch {}
         step2.push([turl, t, ok])
       }
     }
     const f2 = path.join(ART_DIR, `${task.id}-step2.csv`)
     fs.writeFileSync(f2, toCsv(step2), 'utf-8')
-    task.steps[1].artifact = f2; task.steps[1].status = 'done'
+    task.steps[1].artifact = f2; task.steps[1].status = 'done'; pushLog(task, `步骤2完成，产物：${f2}，行数：${step2.length - 1}`)
 
-    task.steps[2].status = 'running'; task.steps[2].log.push('计算聚合指标')
+    task.steps[2].status = 'running'; task.steps[2].log.push('计算聚合指标'); pushLog(task, '步骤3开始聚合计算')
     const success = step2.slice(1).filter(r => r[2] === '1').length
     const total = step2.length - 1
     const f3 = path.join(ART_DIR, `${task.id}-step3.csv`)
     fs.writeFileSync(f3, toCsv([['metric','value'],['query_total',String(total)],['reachable_total',String(success)],['reach_rate',String((success/Math.max(total,1)).toFixed(4))]]), 'utf-8')
-    task.steps[2].artifact = f3; task.steps[2].status = 'done'
+    task.steps[2].artifact = f3; task.steps[2].status = 'done'; pushLog(task, `步骤3完成，产物：${f3}`)
 
-    task.status = 'done'
+    task.status = 'done'; pushLog(task, '任务执行完成')
   } catch (e) {
-    task.status = 'failed'
+    task.status = 'failed'; pushLog(task, '任务执行失败')
     const running = task.steps.find(s => s.status === 'running')
     if (running) { running.status = 'failed'; running.log.push(String(e)) }
   }
@@ -104,7 +113,7 @@ async function runTask(task: EvalTask) {
 
 export function createTask(dimension: Dimension) {
   const id = `task-${Date.now()}`
-  const task: EvalTask = { id, dimension, status: 'running', createdAt: new Date().toLocaleString('zh-CN'), steps: mkSteps(dimension) }
+  const task: EvalTask = { id, dimension, status: 'running', createdAt: new Date().toLocaleString('zh-CN'), steps: mkSteps(dimension), runtimeLogs: [] }
   TASKS.set(id, task)
   void runTask(task)
   return task

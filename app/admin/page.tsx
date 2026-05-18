@@ -32,9 +32,10 @@ type TaskStep = {
 type EvalTask = {
   id: string
   dimension: Dimension
-  status: 'pending' | 'running' | 'done'
+  status: 'pending' | 'running' | 'done' | 'failed'
   createdAt: string
   steps: TaskStep[]
+  runtimeLogs?: string[]
 }
 
 const initialSites: SiteConfig[] = [
@@ -178,7 +179,7 @@ export default function AdminPage() {
                         <p className="text-sm font-medium">{step.name}</p>
                         <div className="flex items-center gap-2">
                           <Badge variant={step.status === 'done' ? 'default' : step.status === 'running' ? 'secondary' : step.status === 'failed' ? 'destructive' : 'outline'}>{stepStatusLabel(step.status)}</Badge>
-                          {step.status !== 'pending' && (
+                          {(step.status === 'running' || (step.status === 'done' && step.artifact)) && (
                             <Button size="sm" variant="outline" onClick={() => exportStepData(task, step)}>导出该步骤数据</Button>
                           )}
                         </div>
@@ -190,6 +191,14 @@ export default function AdminPage() {
                       )}
                     </div>
                   ))}
+                </div>
+                <div className="rounded border p-2">
+                  <p className="text-sm font-medium mb-2">实时执行日志</p>
+                  <div className="max-h-40 overflow-auto rounded bg-muted/40 p-2 font-mono text-xs">
+                    {(task.runtimeLogs && task.runtimeLogs.length > 0) ? task.runtimeLogs.map((l, i) => (
+                      <div key={i}>{l}</div>
+                    )) : <div className="text-muted-foreground">暂无日志</div>}
+                  </div>
                 </div>
               </div>
             ))}
