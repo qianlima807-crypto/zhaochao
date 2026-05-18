@@ -9,13 +9,15 @@ import { websites, loadingSteps } from '@/lib/mock-data'
 import { CheckCircle, Loader2, Circle, Terminal } from 'lucide-react'
 
 // 预先生成所有步骤的日志，避免动态生成
-function generateAllLogs(websiteNames: string[]) {
+function generateAllLogs(websiteNames: string[], activeStepIds: string[]) {
   const allLogs: { step: number; time: string; type: 'info' | 'success' | 'warning' | 'data'; message: string }[] = []
   
   const getTime = () => new Date().toLocaleTimeString('zh-CN', { hour12: false })
   
+  const isStepEnabled = (stepId: string) => activeStepIds.includes(stepId)
+
   // Step 0: init
-  allLogs.push(
+  if (isStepEnabled('init')) allLogs.push(
     { step: 0, time: getTime(), type: 'info', message: '初始化 BidCrawler v3.2.1...' },
     { step: 0, time: getTime(), type: 'info', message: '加载爬虫配置文件...' },
     { step: 0, time: getTime(), type: 'success', message: '爬虫引擎启动成功' },
@@ -23,7 +25,7 @@ function generateAllLogs(websiteNames: string[]) {
   )
   
   // Step 1: load-source
-  websiteNames.forEach(name => {
+  if (isStepEnabled('load-source')) websiteNames.forEach(name => {
     allLogs.push(
       { step: 1, time: getTime(), type: 'info', message: `连接 ${name}...` },
       { step: 1, time: getTime(), type: 'success', message: `${name} 连接成功` },
@@ -31,7 +33,7 @@ function generateAllLogs(websiteNames: string[]) {
   })
   
   // Step 2: sample
-  allLogs.push(
+  if (isStepEnabled('sample')) allLogs.push(
     { step: 2, time: getTime(), type: 'info', message: '开始随机采样...' },
     { step: 2, time: getTime(), type: 'data', message: '采样范围: 近30天招标公告' },
     { step: 2, time: getTime(), type: 'data', message: '样本数量: 500条' },
@@ -40,48 +42,54 @@ function generateAllLogs(websiteNames: string[]) {
   )
   
   // Step 3: analyze-speed
-  allLogs.push(
+  if (isStepEnabled('analyze-speed')) allLogs.push(
     { step: 3, time: getTime(), type: 'info', message: '开始计算更新延迟...' },
     { step: 3, time: getTime(), type: 'data', message: '分析方法: 对比原始发布时间与平台收录时间' },
   )
-  websiteNames.forEach(name => {
-    allLogs.push(
-      { step: 3, time: getTime(), type: 'info', message: `分析 ${name} 更新速度...` },
-      { step: 3, time: getTime(), type: 'data', message: `${name} P50延迟: ${Math.round(5 + Math.random() * 20)}分钟` },
-    )
-  })
-  allLogs.push({ step: 3, time: getTime(), type: 'success', message: '更新速度分析完成' })
+  if (isStepEnabled('analyze-speed')) {
+    websiteNames.forEach(name => {
+      allLogs.push(
+        { step: 3, time: getTime(), type: 'info', message: `分析 ${name} 更新速度...` },
+        { step: 3, time: getTime(), type: 'data', message: `${name} P50延迟: ${Math.round(5 + Math.random() * 20)}分钟` },
+      )
+    })
+    allLogs.push({ step: 3, time: getTime(), type: 'success', message: '更新速度分析完成' })
+  }
   
   // Step 4: analyze-recall
-  allLogs.push(
+  if (isStepEnabled('analyze-recall')) allLogs.push(
     { step: 4, time: getTime(), type: 'info', message: '开始计算召回率...' },
     { step: 4, time: getTime(), type: 'data', message: '对比样本与各平台收录情况' },
   )
-  websiteNames.forEach(name => {
-    const rate = Math.round(85 + Math.random() * 15)
-    allLogs.push(
-      { step: 4, time: getTime(), type: 'info', message: `检索 ${name} 数据...` },
-      { step: 4, time: getTime(), type: 'data', message: `${name} 召回率: ${rate}%` },
-    )
-  })
-  allLogs.push({ step: 4, time: getTime(), type: 'success', message: '召回率计算完成' })
+  if (isStepEnabled('analyze-recall')) {
+    websiteNames.forEach(name => {
+      const rate = Math.round(85 + Math.random() * 15)
+      allLogs.push(
+        { step: 4, time: getTime(), type: 'info', message: `检索 ${name} 数据...` },
+        { step: 4, time: getTime(), type: 'data', message: `${name} 召回率: ${rate}%` },
+      )
+    })
+    allLogs.push({ step: 4, time: getTime(), type: 'success', message: '召回率计算完成' })
+  }
   
   // Step 5: analyze-duplicate
-  allLogs.push(
+  if (isStepEnabled('analyze-duplicate')) allLogs.push(
     { step: 5, time: getTime(), type: 'info', message: '开始检测重复信息...' },
     { step: 5, time: getTime(), type: 'data', message: '使用文本相似度算法进行去重分析' },
   )
-  websiteNames.forEach(name => {
-    const rate = Math.round(1 + Math.random() * 5)
-    allLogs.push(
-      { step: 5, time: getTime(), type: 'info', message: `分析 ${name} 重复数据...` },
-      { step: 5, time: getTime(), type: 'data', message: `${name} 重复率: ${rate}%` },
-    )
-  })
-  allLogs.push({ step: 5, time: getTime(), type: 'success', message: '重复度分析完成' })
+  if (isStepEnabled('analyze-duplicate')) {
+    websiteNames.forEach(name => {
+      const rate = Math.round(1 + Math.random() * 5)
+      allLogs.push(
+        { step: 5, time: getTime(), type: 'info', message: `分析 ${name} 重复数据...` },
+        { step: 5, time: getTime(), type: 'data', message: `${name} 重复率: ${rate}%` },
+      )
+    })
+    allLogs.push({ step: 5, time: getTime(), type: 'success', message: '重复度分析完成' })
+  }
   
   // Step 6: generate
-  allLogs.push(
+  if (isStepEnabled('generate')) allLogs.push(
     { step: 6, time: getTime(), type: 'info', message: '汇总分析结果...' },
     { step: 6, time: getTime(), type: 'info', message: '生成可视化图表...' },
     { step: 6, time: getTime(), type: 'info', message: '编写评测报告...' },
@@ -111,8 +119,13 @@ function LoadingContent() {
   
   const selectedWebsites = websites.filter(w => websiteIds.includes(w.id))
 
-  // 计算总时长
-  const totalDuration = loadingSteps.reduce((sum, step) => sum + step.duration, 0)
+  const activeStepIds = ['init', 'load-source', 'sample', ...dimensionIds.map(id => `analyze-${id}`), 'generate']
+
+  // 计算总时长（演示用：保持节奏紧凑，避免用户等待过久）
+  const rawDuration = loadingSteps
+    .filter(step => activeStepIds.includes(step.id))
+    .reduce((sum, step) => sum + step.duration, 0)
+  const totalDuration = Math.min(15000, Math.max(9000, Math.round(rawDuration * 0.35)))
 
   // 初始化日志数据
   useEffect(() => {
@@ -124,9 +137,9 @@ function LoadingContent() {
     
     hasInitialized.current = true
     const websiteNames = selectedWebsites.map(w => w.name)
-    const logs = generateAllLogs(websiteNames)
+    const logs = generateAllLogs(websiteNames, activeStepIds)
     setAllLogs(logs)
-  }, [selectedWebsites, router])
+  }, [selectedWebsites, router, activeStepIds])
 
   // 主动画循环
   useEffect(() => {
@@ -143,7 +156,8 @@ function LoadingContent() {
       setProgress(newProgress)
     }, 100)
 
-    // 逐条显示日志
+    // 逐条显示日志（根据总时长自动调速）
+    const logIntervalMs = Math.max(90, Math.min(220, Math.floor(totalDuration / Math.max(allLogs.length, 1))))
     const logInterval = setInterval(() => {
       if (logIndex < allLogs.length) {
         setVisibleLogCount(logIndex + 1)
@@ -157,7 +171,7 @@ function LoadingContent() {
         
         logIndex++
       }
-    }, 180)
+    }, logIntervalMs)
 
     // 计算完成时间（基于总时长）
     const completeTimeout = setTimeout(() => {
@@ -174,7 +188,8 @@ function LoadingContent() {
           infoType,
           dimensions: dimensionIds.join(','),
         })
-        router.push(`/compare/report/demo?${params.toString()}`)
+        const reportId = `report-${Date.now()}`
+        router.push(`/compare/report/${reportId}?${params.toString()}`)
       }, 1500)
     }, totalDuration)
 
