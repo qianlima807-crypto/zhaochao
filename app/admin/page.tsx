@@ -60,6 +60,14 @@ export default function AdminPage() {
   const [loadingTasks, setLoadingTasks] = useState(false)
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
 
+  const stepStatusLabel = (status: StepStatus) => {
+    if (status === 'running') return '进行中'
+    if (status === 'done') return '已完成'
+    if (status === 'failed') return '失败'
+    return '待开始'
+  }
+
+
   const createTask = async (d: Dimension) => {
     await fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ dimension: d }) })
     await refreshTasks()
@@ -158,18 +166,21 @@ export default function AdminPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{task.dimension}</Badge>
-                    <Badge>{task.status}</Badge>
+                    <Badge variant={task.status === 'done' ? 'default' : task.status === 'failed' ? 'destructive' : 'outline'}>{task.status === 'running' ? '执行中' : task.status === 'done' ? '已完成' : '失败'}</Badge>
                     {task.status === 'running' && <Badge variant="outline">自动执行中</Badge>}
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">当前步骤：{task.steps.find(s => s.status === 'running')?.name || (task.status === 'done' ? '全部完成' : '等待执行')}</p>
                 <div className="space-y-2">
                   {task.steps.map(step => (
                     <div key={step.id} className="rounded border p-2">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium">{step.name}</p>
                         <div className="flex items-center gap-2">
-                          <Badge variant={step.status === 'done' ? 'default' : 'outline'}>{step.status}</Badge>
-                          <Button size="sm" variant="outline" onClick={() => exportStepData(task, step)}>导出该步骤数据</Button>
+                          <Badge variant={step.status === 'done' ? 'default' : step.status === 'running' ? 'secondary' : step.status === 'failed' ? 'destructive' : 'outline'}>{stepStatusLabel(step.status)}</Badge>
+                          {step.status !== 'pending' && (
+                            <Button size="sm" variant="outline" onClick={() => exportStepData(task, step)}>导出该步骤数据</Button>
+                          )}
                         </div>
                       </div>
                       {step.log.length > 0 && (
