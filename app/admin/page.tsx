@@ -17,6 +17,7 @@ type SiteConfig = {
   name: string
   dimension: Dimension
   role: SiteRole
+  fullUrl: string
   baseUrl: string
   searchPath: string
   keywordParam?: string
@@ -32,8 +33,8 @@ type EvalTask = {
 }
 
 const initialSites: SiteConfig[] = [
-  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: 'searchtype=2&dbselect=bidx', enabled: true },
-  { id: 'qianlima', name: '千里马招标网', dimension: 'recall', role: 'target', baseUrl: 'https://search.qianlima.com', searchPath: '/', keywordParam: 'q', fixedParams: '#/search', enabled: true },
+  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', fullUrl: 'https://search.ccgp.gov.cn/bxsearch?searchtype=2&dbselect=bidx', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: 'searchtype=2&dbselect=bidx', enabled: true },
+  { id: 'qianlima', name: '千里马招标网', dimension: 'recall', role: 'target', fullUrl: 'https://search.qianlima.com/?q=#/search', baseUrl: 'https://search.qianlima.com', searchPath: '/', keywordParam: 'q', fixedParams: '#/search', enabled: true },
 ]
 
 const initialTasks: EvalTask[] = [
@@ -47,23 +48,37 @@ export default function AdminPage() {
   const [name, setName] = useState('')
   const [dimension, setDimension] = useState<Dimension>('recall')
   const [role, setRole] = useState<SiteRole>('target')
-  const [baseUrl, setBaseUrl] = useState('')
-  const [searchPath, setSearchPath] = useState('')
-  const [keywordParam, setKeywordParam] = useState('q')
-  const [fixedParams, setFixedParams] = useState('')
+  const [fullUrl, setFullUrl] = useState('')
 
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
 
+  const parseUrlConfig = (urlText: string) => {
+    try {
+      const u = new URL(urlText)
+      const params = new URLSearchParams(u.search)
+      const knownKeys = ['q', 'keyword', 'kw', 'searchparam']
+      const keywordParam = knownKeys.find(k => params.has(k)) || ''
+      if (keywordParam) params.delete(keywordParam)
+      return {
+        baseUrl: `${u.protocol}//${u.host}`,
+        searchPath: u.pathname || '/',
+        keywordParam,
+        fixedParams: params.toString() + (u.hash || ''),
+      }
+    } catch {
+      return null
+    }
+  }
+
   const addSite = () => {
-    if (!name.trim() || !baseUrl.trim() || !searchPath.trim()) return
-    if (role === 'target' && !keywordParam.trim()) return
+    if (!name.trim() || !fullUrl.trim()) return
+    const parsed = parseUrlConfig(fullUrl.trim())
+    if (!parsed) return
+    if (role === 'target' && !parsed.keywordParam) return
     const id = `${dimension}-${Date.now()}`
-    setSites(prev => [...prev, { id, name: name.trim(), dimension, role, baseUrl: baseUrl.trim(), searchPath: searchPath.trim(), keywordParam: role === 'target' ? keywordParam.trim() : '', fixedParams: fixedParams.trim(), enabled: true }])
+    setSites(prev => [...prev, { id, name: name.trim(), dimension, role, fullUrl: fullUrl.trim(), baseUrl: parsed.baseUrl, searchPath: parsed.searchPath, keywordParam: role === 'target' ? parsed.keywordParam : '', fixedParams: parsed.fixedParams, enabled: true }])
     setName('')
-    setBaseUrl('')
-    setSearchPath('')
-    setKeywordParam('q')
-    setFixedParams('')
+    setFullUrl('')
   }
 
   const toggleSite = (id: string) => {
@@ -76,7 +91,7 @@ export default function AdminPage() {
   }
 
   const exportCsv = () => {
-    const header = 'id,name,dimension,role,enabled,baseUrl,searchPath,keywordParam,fixedParams\n'
+    const header = 'id,name,dimension,role,enabled,fullUrl,baseUrl,searchPath,keywordParam,fixedParams\n'
     const body = sites
       .map(s => `${s.id},${s.name},${s.dimension},${s.role},${s.enabled ? 1 : 0},"${s.baseUrl}","${s.searchPath}",${s.keywordParam},"${s.fixedParams.replace(/"/g, '""')}"`)
       .join('\n')
@@ -107,7 +122,7 @@ export default function AdminPage() {
           <CardDescription>按维度和角色（源头/第三方）维护站点配置；源头站仅列表采集无需关键词参数，第三方站才需要关键词参数。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-4">
             <div className="space-y-2"><Label>站点名称</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="例如：某招标网" /></div>
             <div className="space-y-2"><Label>评测维度</Label>
               <Select value={dimension} onValueChange={(v) => setDimension(v as Dimension)}>
@@ -128,20 +143,17 @@ export default function AdminPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Base URL</Label><Input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://xx.com" /></div>
-            <div className="space-y-2"><Label>Search Path</Label><Input value={searchPath} onChange={e => setSearchPath(e.target.value)} placeholder="/search" /></div>
-            <div className="space-y-2"><Label>关键词参数名（仅第三方）</Label><Input disabled={role === "source"} value={keywordParam} onChange={e => setKeywordParam(e.target.value)} placeholder={role === "source" ? "源头站无需填写" : "q / keyword / searchparam"} /></div>
+            <div className="space-y-2 md:col-span-2"><Label>完整URL</Label><Input value={fullUrl} onChange={e => setFullUrl(e.target.value)} placeholder="https://www.ggzy.gov.cn/deal/dealList.html?DEAL_CLASSIFY=00&DEAL_STAGE=0001" /></div>
           </div>
-          <div className="grid gap-3 md:grid-cols-1">
-            <div className="space-y-2"><Label>固定参数（可选）</Label><Input value={fixedParams} onChange={e => setFixedParams(e.target.value)} placeholder="例如：searchtype=2&dbselect=bidx" /></div>
-          </div>
+          <p className="text-xs text-muted-foreground">系统会自动解析出 base URL、search path、关键词参数名（仅第三方站）和固定参数。</p>
           <div className="flex gap-2"><Button onClick={addSite}>新增地址</Button><Button variant="outline" onClick={exportCsv}>导出配置CSV</Button></div>
           <div className="rounded-md border divide-y">
             {sites.map(site => (
               <div key={site.id} className="p-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="font-medium">{site.name} <Badge variant="secondary">{site.dimension}</Badge> <Badge variant="outline">{site.role}</Badge></p>
-                  <p className="text-xs text-muted-foreground break-all">{site.baseUrl}{site.searchPath} | keyword={site.keywordParam || "-"} | fixed={site.fixedParams || '-'}</p>
+                  <p className="text-xs text-muted-foreground break-all">{site.fullUrl}</p>
+                  <p className="text-xs text-muted-foreground break-all">解析结果: {site.baseUrl}{site.searchPath} | keyword={site.keywordParam || "-"} | fixed={site.fixedParams || '-'}</p>
                 </div>
                 <Button size="sm" variant={site.enabled ? 'default' : 'outline'} onClick={() => toggleSite(site.id)}>{site.enabled ? '已启用' : '已禁用'}</Button>
               </div>
