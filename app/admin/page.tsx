@@ -19,7 +19,7 @@ type SiteConfig = {
   role: SiteRole
   baseUrl: string
   searchPath: string
-  keywordParam: string
+  keywordParam?: string
   fixedParams: string
   enabled: boolean
 }
@@ -32,7 +32,7 @@ type EvalTask = {
 }
 
 const initialSites: SiteConfig[] = [
-  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', keywordParam: 'searchparam', fixedParams: 'searchtype=2&dbselect=bidx', enabled: true },
+  { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: 'searchtype=2&dbselect=bidx', enabled: true },
   { id: 'qianlima', name: '千里马招标网', dimension: 'recall', role: 'target', baseUrl: 'https://search.qianlima.com', searchPath: '/', keywordParam: 'q', fixedParams: '#/search', enabled: true },
 ]
 
@@ -55,9 +55,10 @@ export default function AdminPage() {
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
 
   const addSite = () => {
-    if (!name.trim() || !baseUrl.trim() || !searchPath.trim() || !keywordParam.trim()) return
+    if (!name.trim() || !baseUrl.trim() || !searchPath.trim()) return
+    if (role === 'target' && !keywordParam.trim()) return
     const id = `${dimension}-${Date.now()}`
-    setSites(prev => [...prev, { id, name: name.trim(), dimension, role, baseUrl: baseUrl.trim(), searchPath: searchPath.trim(), keywordParam: keywordParam.trim(), fixedParams: fixedParams.trim(), enabled: true }])
+    setSites(prev => [...prev, { id, name: name.trim(), dimension, role, baseUrl: baseUrl.trim(), searchPath: searchPath.trim(), keywordParam: role === 'target' ? keywordParam.trim() : '', fixedParams: fixedParams.trim(), enabled: true }])
     setName('')
     setBaseUrl('')
     setSearchPath('')
@@ -103,7 +104,7 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle>维度采集地址配置</CardTitle>
-          <CardDescription>按维度和角色（源头/第三方）维护站点配置；查询参数由系统运行时注入标题，不再手填完整查询URL。</CardDescription>
+          <CardDescription>按维度和角色（源头/第三方）维护站点配置；源头站仅列表采集无需关键词参数，第三方站才需要关键词参数。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-6">
@@ -129,7 +130,7 @@ export default function AdminPage() {
             </div>
             <div className="space-y-2"><Label>Base URL</Label><Input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://xx.com" /></div>
             <div className="space-y-2"><Label>Search Path</Label><Input value={searchPath} onChange={e => setSearchPath(e.target.value)} placeholder="/search" /></div>
-            <div className="space-y-2"><Label>关键词参数名</Label><Input value={keywordParam} onChange={e => setKeywordParam(e.target.value)} placeholder="q / keyword" /></div>
+            <div className="space-y-2"><Label>关键词参数名（仅第三方）</Label><Input disabled={role === "source"} value={keywordParam} onChange={e => setKeywordParam(e.target.value)} placeholder={role === "source" ? "源头站无需填写" : "q / keyword / searchparam"} /></div>
           </div>
           <div className="grid gap-3 md:grid-cols-1">
             <div className="space-y-2"><Label>固定参数（可选）</Label><Input value={fixedParams} onChange={e => setFixedParams(e.target.value)} placeholder="例如：searchtype=2&dbselect=bidx" /></div>
@@ -140,7 +141,7 @@ export default function AdminPage() {
               <div key={site.id} className="p-3 flex items-center justify-between gap-3">
                 <div>
                   <p className="font-medium">{site.name} <Badge variant="secondary">{site.dimension}</Badge> <Badge variant="outline">{site.role}</Badge></p>
-                  <p className="text-xs text-muted-foreground break-all">{site.baseUrl}{site.searchPath} | keyword={site.keywordParam} | fixed={site.fixedParams || '-'}</p>
+                  <p className="text-xs text-muted-foreground break-all">{site.baseUrl}{site.searchPath} | keyword={site.keywordParam || "-"} | fixed={site.fixedParams || '-'}</p>
                 </div>
                 <Button size="sm" variant={site.enabled ? 'default' : 'outline'} onClick={() => toggleSite(site.id)}>{site.enabled ? '已启用' : '已禁用'}</Button>
               </div>

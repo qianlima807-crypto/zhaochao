@@ -86,27 +86,37 @@ def title_variants(title: str) -> List[str]:
     return dedup
 
 
-def fetch_ccgp_items(limit: int = 10) -> List[dict]:
-    params = {
-        "searchtype": "2", "page_index": "1", "start_time": "", "end_time": "",
-        "timeType": "2", "searchparam": "", "searchchannel": "0", "dbselect": "bidx",
-        "kw": "", "bidSort": "0", "pinMu": "0", "bidType": "0", "buyerName": "",
-        "projectId": "", "displayZone": "", "zoneId": "", "agentName": "",
-    }
-    html = get(f"{CCGP_URL}?{urlencode(params)}")
-    p = LinkParser(); p.feed(html)
+def fetch_ccgp_items(limit: int = 10, source_url: str = "", pages: int = 1) -> List[dict]:
     items = []
-    for href, txt in p.links:
-        if len(txt) < 10:
-            continue
-        if not any(k in txt for k in ["采购", "招标", "中标", "成交", "公告"]):
-            continue
-        if txt in [i['title'] for i in items]:
-            continue
-        pub_date = extract_date(txt) or datetime.now().strftime("%Y-%m-%d")
-        items.append({"title": txt, "source_url": href, "publish_date": pub_date, "source_site": "ccgp"})
-        if len(items) >= limit:
-            break
+    if source_url:
+        urls = [source_url]
+    else:
+        params = {
+            "searchtype": "2", "page_index": "1", "start_time": "", "end_time": "",
+            "timeType": "2", "searchparam": "", "searchchannel": "0", "dbselect": "bidx",
+            "kw": "", "bidSort": "0", "pinMu": "0", "bidType": "0", "buyerName": "",
+            "projectId": "", "displayZone": "", "zoneId": "", "agentName": "",
+        }
+        urls = []
+        for i in range(max(1, pages)):
+            params["page_index"] = str(i + 1)
+            urls.append(f"{CCGP_URL}?{urlencode(params)}")
+
+    for u in urls:
+        html = get(u)
+        p = LinkParser(); p.feed(html)
+        for href, txt in p.links:
+            if len(txt) < 10:
+                continue
+            if not any(k in txt for k in ["采购", "招标", "中标", "成交", "公告"]):
+                continue
+            if txt in [i['title'] for i in items]:
+                continue
+            pub_date = extract_date(txt) or datetime.now().strftime("%Y-%m-%d")
+            src = "source-list" if source_url else "ccgp"
+            items.append({"title": txt, "source_url": href or u, "publish_date": pub_date, "source_site": src})
+            if len(items) >= limit:
+                return items
     return items
 
 
@@ -183,13 +193,15 @@ def main():
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--sleep", type=float, default=0.5)
     parser.add_argument("--output", type=str, default="probe.sqlite")
+    parser.add_argument("--source-url", type=str, default="")
+    parser.add_argument("--source-pages", type=int, default=1)
     args = parser.parse_args()
 
     db_path = Path(args.output)
     conn = sqlite3.connect(db_path)
     init_db(conn)
 
-    items = fetch_ccgp_items(args.limit)
+    items = fetch_ccgp_items(args.limit, args.source_url, args.source_pages)
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for it in items:
         conn.execute(
