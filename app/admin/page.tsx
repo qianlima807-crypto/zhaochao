@@ -1,13 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 type Dimension = 'speed' | 'recall' | 'duplicate'
 type SiteRole = 'source' | 'target'
-type StepStatus = 'pending' | 'running' | 'done'
+type StepStatus = 'pending' | 'running' | 'done' | 'failed'
 
 type SiteConfig = {
   id: string
@@ -54,64 +54,36 @@ const initialSites: SiteConfig[] = [
   { id: 'zhiliaobx', name: '知了标讯', dimension: 'recall', role: 'target', fullUrl: 'https://www.zhiliaobiaoxun.com/search/', baseUrl: 'https://www.zhiliaobiaoxun.com', searchPath: '/search/', keywordParam: 'q', fixedParams: '', enabled: true },
 ]
 
-const makeSteps = (dimension: Dimension): TaskStep[] => {
-  if (dimension === 'speed') {
-    return [
-      { id: 'collect-source', name: '步骤1：采集发布源头测试数据', status: 'running', log: ['开始采集源头网站列表页', '已连接 3 个源头站点'] },
-      { id: 'query-target', name: '步骤2：标题处理并查询11个第三方网站', status: 'pending', log: [] },
-      { id: 'aggregate', name: '步骤3：聚合统计更新速度结果', status: 'pending', log: [] },
-    ]
-  }
-  if (dimension === 'recall') {
-    return [
-      { id: 'sample-target', name: '步骤1：从第三方网站抽样测试集', status: 'running', log: ['开始抽样第三方样本'] },
-      { id: 'cross-query', name: '步骤2：跨站查询并计算覆盖率', status: 'pending', log: [] },
-      { id: 'aggregate', name: '步骤3：输出覆盖率统计', status: 'pending', log: [] },
-    ]
-  }
-  return [
-    { id: 'seed', name: '步骤1：选取重复率测试种子', status: 'running', log: ['按 48 小时前规则筛选种子'] },
-    { id: 'search', name: '步骤2：同站多变体搜索', status: 'pending', log: [] },
-    { id: 'calc', name: '步骤3：计算重复率', status: 'pending', log: [] },
-  ]
-}
-
 export default function AdminPage() {
   const sites = initialSites
   const [tasks, setTasks] = useState<EvalTask[]>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
 
-  const createTask = (d: Dimension) => {
-    const id = `task-${Date.now()}`
-    setTasks(prev => [{ id, dimension: d, status: 'running', createdAt: new Date().toLocaleString('zh-CN'), steps: makeSteps(d) }, ...prev])
+  const createTask = async (d: Dimension) => {
+    await fetch('/api/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ dimension: d }) })
+    await refreshTasks()
   }
 
-  const advanceStep = (taskId: string) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== taskId) return t
-      const steps = [...t.steps]
-      const runningIdx = steps.findIndex(s => s.status === 'running')
-      if (runningIdx >= 0) {
-        steps[runningIdx] = { ...steps[runningIdx], status: 'done', log: [...steps[runningIdx].log, '步骤执行完成'] }
-        if (runningIdx + 1 < steps.length) {
-          steps[runningIdx + 1] = { ...steps[runningIdx + 1], status: 'running', log: [...steps[runningIdx + 1].log, '步骤开始执行'] }
-          return { ...t, steps }
-        }
-        return { ...t, status: 'done', steps }
-      }
-      return t
-    }))
+  const refreshTasks = async () => {
+    setLoadingTasks(true)
+    try {
+      const resp = await fetch('/api/tasks')
+      const data = await resp.json()
+      setTasks(data.tasks || [])
+    } finally {
+      setLoadingTasks(false)
+    }
   }
+
+  useEffect(() => {
+    refreshTasks()
+    const t = setInterval(refreshTasks, 3000)
+    return () => clearInterval(t)
+  }, [])
 
   const exportStepData = (task: EvalTask, step: TaskStep) => {
-    const header = 'task_id,dimension,step_id,step_name,status,log\n'
-    const body = `${task.id},${task.dimension},${step.id},"${step.name}",${step.status},"${step.log.join(' | ').replace(/"/g, '""')}"`
-    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `${task.id}-${step.id}.csv`
-    a.click()
-    URL.revokeObjectURL(a.href)
+    window.open(`/api/tasks/${task.id}/steps/${step.id}/export`, '_blank')
   }
 
   const exportCsv = () => {
@@ -169,12 +141,14 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={refreshTasks}>刷新任务</Button>
             <Button onClick={() => createTask('speed')}>触发更新速度任务</Button>
             <Button onClick={() => createTask('recall')}>触发召回率任务</Button>
             <Button onClick={() => createTask('duplicate')}>触发重复率任务</Button>
           </div>
           <div className="rounded-md border divide-y">
-            {tasks.length === 0 && <div className="p-4 text-sm text-muted-foreground">暂无任务，点击上方按钮触发。</div>}
+            {loadingTasks && <div className="p-4 text-sm text-muted-foreground">任务状态刷新中...</div>}
+            {!loadingTasks && tasks.length === 0 && <div className="p-4 text-sm text-muted-foreground">暂无任务，点击上方按钮触发。</div>}
             {tasks.map(task => (
               <div key={task.id} className="p-3 space-y-3">
                 <div className="flex items-center justify-between">
@@ -185,7 +159,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary">{task.dimension}</Badge>
                     <Badge>{task.status}</Badge>
-                    {task.status !== 'done' && <Button size="sm" variant="outline" onClick={() => advanceStep(task.id)}>推进到下一步</Button>}
+                    {task.status === 'running' && <Badge variant="outline">自动执行中</Badge>}
                   </div>
                 </div>
                 <div className="space-y-2">
