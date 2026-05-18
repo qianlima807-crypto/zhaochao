@@ -1,13 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 type Dimension = 'speed' | 'recall' | 'duplicate'
-type TaskStatus = 'pending' | 'running' | 'done' | 'failed'
 type SiteRole = 'source' | 'target'
+type StepStatus = 'pending' | 'running' | 'done'
 
 type SiteConfig = {
   id: string
@@ -22,18 +22,25 @@ type SiteConfig = {
   enabled: boolean
 }
 
+type TaskStep = {
+  id: string
+  name: string
+  status: StepStatus
+  log: string[]
+}
+
 type EvalTask = {
   id: string
   dimension: Dimension
-  status: TaskStatus
+  status: 'pending' | 'running' | 'done'
   createdAt: string
+  steps: TaskStep[]
 }
 
 const initialSites: SiteConfig[] = [
   { id: 'ccgp', name: '中国政府采购网', dimension: 'speed', role: 'source', fullUrl: 'https://search.ccgp.gov.cn/bxsearch', baseUrl: 'https://search.ccgp.gov.cn', searchPath: '/bxsearch', fixedParams: '', enabled: true },
   { id: 'ggzy', name: '全国公共资源交易平台', dimension: 'speed', role: 'source', fullUrl: 'https://www.ggzy.gov.cn/deal/dealList.html?DEAL_CLASSIFY=00&DEAL_STAGE=0001', baseUrl: 'https://www.ggzy.gov.cn', searchPath: '/deal/dealList.html', fixedParams: 'DEAL_CLASSIFY=00&DEAL_STAGE=0001', enabled: true },
   { id: 'sdccgp', name: '山东政府采购网', dimension: 'speed', role: 'source', fullUrl: 'http://www.ccgp-shandong.gov.cn/xxgk?colCode=0301&area=370000&selectedCode=0301&selectedCode1=0303&selectedName=%E9%87%87%E8%B4%AD%E5%85%AC%E5%91%8A', baseUrl: 'http://www.ccgp-shandong.gov.cn', searchPath: '/xxgk', fixedParams: 'colCode=0301&area=370000&selectedCode=0301&selectedCode1=0303&selectedName=%E9%87%87%E8%B4%AD%E5%85%AC%E5%91%8A', enabled: true },
-
   { id: 'yfbzb', name: '乙方宝招标网', dimension: 'recall', role: 'target', fullUrl: 'https://www.yfbzb.com/search/invitedBidSearch?defaultSearch=true', baseUrl: 'https://www.yfbzb.com', searchPath: '/search/invitedBidSearch', keywordParam: 'keyword', fixedParams: 'defaultSearch=true', enabled: true },
   { id: 'zhaobiaowang', name: '招标网', dimension: 'recall', role: 'target', fullUrl: 'https://s.zhaobiao.cn/search/index', baseUrl: 'https://s.zhaobiao.cn', searchPath: '/search/index', keywordParam: 'q', fixedParams: '', enabled: true },
   { id: 'qianlima', name: '千里马招标网', dimension: 'recall', role: 'target', fullUrl: 'https://search.qianlima.com/?q=#/search', baseUrl: 'https://search.qianlima.com', searchPath: '/', keywordParam: 'q', fixedParams: '#/search', enabled: true },
@@ -47,26 +54,70 @@ const initialSites: SiteConfig[] = [
   { id: 'zhiliaobx', name: '知了标讯', dimension: 'recall', role: 'target', fullUrl: 'https://www.zhiliaobiaoxun.com/search/', baseUrl: 'https://www.zhiliaobiaoxun.com', searchPath: '/search/', keywordParam: 'q', fixedParams: '', enabled: true },
 ]
 
-const initialTasks: EvalTask[] = [
-  { id: 'task-1001', dimension: 'speed', status: 'done', createdAt: new Date().toLocaleString('zh-CN') },
-  { id: 'task-1002', dimension: 'recall', status: 'running', createdAt: new Date().toLocaleString('zh-CN') },
-]
+const makeSteps = (dimension: Dimension): TaskStep[] => {
+  if (dimension === 'speed') {
+    return [
+      { id: 'collect-source', name: '步骤1：采集发布源头测试数据', status: 'running', log: ['开始采集源头网站列表页', '已连接 3 个源头站点'] },
+      { id: 'query-target', name: '步骤2：标题处理并查询11个第三方网站', status: 'pending', log: [] },
+      { id: 'aggregate', name: '步骤3：聚合统计更新速度结果', status: 'pending', log: [] },
+    ]
+  }
+  if (dimension === 'recall') {
+    return [
+      { id: 'sample-target', name: '步骤1：从第三方网站抽样测试集', status: 'running', log: ['开始抽样第三方样本'] },
+      { id: 'cross-query', name: '步骤2：跨站查询并计算覆盖率', status: 'pending', log: [] },
+      { id: 'aggregate', name: '步骤3：输出覆盖率统计', status: 'pending', log: [] },
+    ]
+  }
+  return [
+    { id: 'seed', name: '步骤1：选取重复率测试种子', status: 'running', log: ['按 48 小时前规则筛选种子'] },
+    { id: 'search', name: '步骤2：同站多变体搜索', status: 'pending', log: [] },
+    { id: 'calc', name: '步骤3：计算重复率', status: 'pending', log: [] },
+  ]
+}
 
 export default function AdminPage() {
   const sites = initialSites
-  const [tasks, setTasks] = useState<EvalTask[]>(initialTasks)
-
+  const [tasks, setTasks] = useState<EvalTask[]>([])
   const enabledCount = useMemo(() => sites.filter(s => s.enabled).length, [sites])
 
   const createTask = (d: Dimension) => {
     const id = `task-${Date.now()}`
-    setTasks(prev => [{ id, dimension: d, status: 'pending', createdAt: new Date().toLocaleString('zh-CN') }, ...prev])
+    setTasks(prev => [{ id, dimension: d, status: 'running', createdAt: new Date().toLocaleString('zh-CN'), steps: makeSteps(d) }, ...prev])
+  }
+
+  const advanceStep = (taskId: string) => {
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t
+      const steps = [...t.steps]
+      const runningIdx = steps.findIndex(s => s.status === 'running')
+      if (runningIdx >= 0) {
+        steps[runningIdx] = { ...steps[runningIdx], status: 'done', log: [...steps[runningIdx].log, '步骤执行完成'] }
+        if (runningIdx + 1 < steps.length) {
+          steps[runningIdx + 1] = { ...steps[runningIdx + 1], status: 'running', log: [...steps[runningIdx + 1].log, '步骤开始执行'] }
+          return { ...t, steps }
+        }
+        return { ...t, status: 'done', steps }
+      }
+      return t
+    }))
+  }
+
+  const exportStepData = (task: EvalTask, step: TaskStep) => {
+    const header = 'task_id,dimension,step_id,step_name,status,log\n'
+    const body = `${task.id},${task.dimension},${step.id},"${step.name}",${step.status},"${step.log.join(' | ').replace(/"/g, '""')}"`
+    const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${task.id}-${step.id}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
   }
 
   const exportCsv = () => {
     const header = 'id,name,dimension,role,enabled,fullUrl,baseUrl,searchPath,keywordParam,fixedParams\n'
     const body = sites
-      .map(s => `${s.id},${s.name},${s.dimension},${s.role},${s.enabled ? 1 : 0},"${s.baseUrl}","${s.searchPath}",${s.keywordParam},"${s.fixedParams.replace(/"/g, '""')}"`)
+      .map(s => `${s.id},${s.name},${s.dimension},${s.role},${s.enabled ? 1 : 0},"${s.fullUrl.replace(/"/g, '""')}","${s.baseUrl}","${s.searchPath}",${s.keywordParam || ''},"${s.fixedParams.replace(/"/g, '""')}"`)
       .join('\n')
     const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
@@ -91,8 +142,8 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>维度采集地址配置</CardTitle>
-          <CardDescription>按维度和角色（源头/第三方）维护站点配置；源头站仅列表采集无需关键词参数，第三方站才需要关键词参数。</CardDescription>
+          <CardTitle>固定评测地址配置（只读）</CardTitle>
+          <CardDescription>更新速度使用3个发布源头；覆盖率与重复率使用固定11个第三方网站。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2"><Button variant="outline" onClick={exportCsv}>导出配置CSV</Button></div>
@@ -102,9 +153,9 @@ export default function AdminPage() {
                 <div>
                   <p className="font-medium">{site.name} <Badge variant="secondary">{site.dimension}</Badge> <Badge variant="outline">{site.role}</Badge></p>
                   <p className="text-xs text-muted-foreground break-all">{site.fullUrl}</p>
-                  <p className="text-xs text-muted-foreground break-all">解析结果: {site.baseUrl}{site.searchPath} | keyword={site.keywordParam || "-"} | fixed={site.fixedParams || '-'}</p>
+                  <p className="text-xs text-muted-foreground break-all">解析结果: {site.baseUrl}{site.searchPath} | keyword={site.keywordParam || '-'} | fixed={site.fixedParams || '-'}</p>
                 </div>
-                <Badge variant={site.enabled ? "default" : "outline"}>{site.enabled ? "已启用" : "已禁用"}</Badge>
+                <Badge variant={site.enabled ? 'default' : 'outline'}>{site.enabled ? '已启用' : '已禁用'}</Badge>
               </div>
             ))}
           </div>
@@ -113,8 +164,8 @@ export default function AdminPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>任务控制与验收数据</CardTitle>
-          <CardDescription>手动触发维度任务并查看状态（原型页面，后续可接真实队列与数据库）。</CardDescription>
+          <CardTitle>任务控制与验收环节</CardTitle>
+          <CardDescription>展示真实任务分步骤状态、日志，并支持分步骤结果导出用于验收。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2 flex-wrap">
@@ -123,10 +174,38 @@ export default function AdminPage() {
             <Button onClick={() => createTask('duplicate')}>触发重复率任务</Button>
           </div>
           <div className="rounded-md border divide-y">
+            {tasks.length === 0 && <div className="p-4 text-sm text-muted-foreground">暂无任务，点击上方按钮触发。</div>}
             {tasks.map(task => (
-              <div key={task.id} className="p-3 flex items-center justify-between">
-                <div><p className="font-medium">{task.id}</p><p className="text-xs text-muted-foreground">{task.createdAt}</p></div>
-                <div className="flex items-center gap-2"><Badge variant="secondary">{task.dimension}</Badge><Badge>{task.status}</Badge></div>
+              <div key={task.id} className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{task.id}</p>
+                    <p className="text-xs text-muted-foreground">{task.createdAt}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{task.dimension}</Badge>
+                    <Badge>{task.status}</Badge>
+                    {task.status !== 'done' && <Button size="sm" variant="outline" onClick={() => advanceStep(task.id)}>推进到下一步</Button>}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {task.steps.map(step => (
+                    <div key={step.id} className="rounded border p-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">{step.name}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={step.status === 'done' ? 'default' : 'outline'}>{step.status}</Badge>
+                          <Button size="sm" variant="outline" onClick={() => exportStepData(task, step)}>导出该步骤数据</Button>
+                        </div>
+                      </div>
+                      {step.log.length > 0 && (
+                        <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground">
+                          {step.log.map((line, idx) => <li key={idx}>{line}</li>)}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
